@@ -157,48 +157,39 @@ for msg in st.session_state.messages:
         """, unsafe_allow_html=True)
 
 # ── Input ──────────────────────────────────
-# ── Input State Fix ─────────────────────────
-if "input_text" not in st.session_state:
-    st.session_state.input_text = ""
+# ── INPUT FORM (BEST FIX) ───────────────────
+with st.form("chat_form", clear_on_submit=True):
 
-user_input = st.text_input(
-    "Share what's on your mind...",
-    key="input_text"
-)
+    user_input = st.text_input("Share what's on your mind...")
 
-if st.button("Send 💜"):
+    submitted = st.form_submit_button("Send 💜")
 
-    if st.session_state.input_text.strip():
+if submitted and user_input.strip():
 
-        text = st.session_state.input_text  # store before clearing
+    # Save user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_input
+    })
 
-        # Save user message
-        st.session_state.messages.append({
-            "role": "user",
-            "content": text
-        })
+    # Process
+    emotion, topic_detected = detect_emotion(user_input)
+    data = get_best_match(user_input)
 
-        # Process
-        emotion, topic_detected = detect_emotion(text)
-        data = get_best_match(text)
+    bot_data = {
+        "emotion": emotion,
+        "topic": topic_detected,
+        "therapist": data["therapist"],
+        "answer": data["answer"]
+    }
 
-        bot_data = {
-            "emotion": emotion,
-            "topic": topic_detected,
-            "therapist": data["therapist"],
-            "answer": data["answer"]
-        }
+    # Save bot response
+    st.session_state.messages.append({
+        "role": "bot",
+        "data": bot_data
+    })
 
-        # Save bot response
-        st.session_state.messages.append({
-            "role": "bot",
-            "data": bot_data
-        })
-
-        # 🔥 CLEAR INPUT (THIS FIXES YOUR PROBLEM)
-        st.session_state.input_text = ""
-
-        st.rerun()
+    st.rerun()
 
 # ── Clear Chat ─────────────────────────────
 if st.button("🗑️ Clear Chat"):
