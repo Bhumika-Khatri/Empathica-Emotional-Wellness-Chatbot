@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
-import anthropic
-import json
 import re
+
+# ML for better matching
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # ── Load Dataset ─────────────────────────────
 @st.cache_data
@@ -13,67 +15,43 @@ def load_data():
 
 df = load_data()
 
+# ── TF-IDF Setup (IMPORTANT FIX) ─────────────
+vectorizer = TfidfVectorizer(stop_words='english')
+tfidf_matrix = vectorizer.fit_transform(df["questionText"])
+
 # ── Page Config ─────────────────────────────
 st.set_page_config(page_title="Empathica 💜", page_icon="💜")
 
-# ── Session State ───────────────────────────
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
+# ── Emotion Detection (NO API NEEDED) ───────
+def detect_emotion(text):
+    text = text.lower()
 
-# ── Sidebar ────────────────────────────────
-with st.sidebar:
-    st.title("⚙️ Settings")
-    api_input = st.text_input("Anthropic API Key", type="password")
-    if api_input:
-        st.session_state.api_key = api_input
+    if any(word in text for word in ["lonely", "alone", "isolated"]):
+        return "depression", "loneliness"
+    elif any(word in text for word in ["anxious", "stress", "worried"]):
+        return "anxiety", "stress"
+    elif any(word in text for word in ["angry", "mad", "frustrated"]):
+        return "anger", "frustration"
+    elif any(word in text for word in ["breakup", "heartbroken"]):
+        return "grief", "relationship"
+    else:
+        return "sadness", "general"
 
-    st.markdown("⚠️ Not a substitute for therapy")
-
-# ── Claude Prompt (ONLY emotion + topic) ────
-SYSTEM_PROMPT = """
-Analyze user input and return ONLY JSON:
-
-{
- "emotion": "",
- "topic": ""
-}
-
-No extra text.
-"""
-
-def detect_emotion(user_text, api_key):
-    client = anthropic.Anthropic(api_key=api_key)
-
-    response = client.messages.create(
-        model="claude-3-opus-20240229",
-        max_tokens=300,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_text}],
-    )
-
-    raw = response.content[0].text
-    clean = re.sub(r"```json|```", "", raw).strip()
-
-    return json.loads(clean)
-
-# ── Match dataset based on user input ───────
+# ── Smart Matching (FIXED) ───────────────────
 def get_best_match(user_text):
-    user_text = user_text.lower()
+    user_vec = vectorizer.transform([user_text])
+    similarity = cosine_similarity(user_vec, tfidf_matrix)
 
-    df["score"] = df["questionText"].apply(
-        lambda x: sum(word in str(x).lower() for word in user_text.split())
-    )
-
-    best = df.sort_values(by="score", ascending=False).iloc[0]
+    best_idx = similarity.argmax()
+    best = df.iloc[best_idx]
 
     return {
-        "question": best["questionText"],
         "therapist": best["therapistInfo"],
         "answer": best["answerText"],
         "topic": best["topic"]
     }
 
-# ── UI ─────────────────────────────────────
+# ── UI ──────────────────────────────────────
 st.title("💜 Empathica")
 st.write("Your emotional wellness companion")
 
@@ -88,16 +66,10 @@ if st.button("Send 💜"):
         with st.spinner("Listening..."):
 
             try:
-                # emotion detection (only if key present)
-                if st.session_state.api_key:
-                    emo = detect_emotion(user_input, st.session_state.api_key)
-                    emotion = emo.get("emotion", "Unknown")
-                    topic_ai = emo.get("topic", "General")
-                else:
-                    emotion = "Unknown"
-                    topic_ai = "General"
+                # Emotion detection
+                emotion, topic_detected = detect_emotion(user_input)
 
-                # dataset match
+                # Dataset matching
                 data = get_best_match(user_input)
 
                 # ── OUTPUT ──
@@ -105,7 +77,7 @@ if st.button("Send 💜"):
                 st.write(emotion)
 
                 st.subheader("💬 Topic")
-                st.write(data["topic"])
+                st.write(topic_detected)
 
                 st.subheader("👩‍⚕️ Therapist")
                 st.write(data["therapist"])
