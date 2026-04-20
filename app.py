@@ -57,35 +57,86 @@ if "messages" not in st.session_state:
 # ── UI CSS ─────────────────────────────────
 st.markdown("""
 <style>
-body { background-color: #0E1117; }
+
+/* ── FULL APP BACKGROUND ── */
+.stApp {
+    background: radial-gradient(circle at top left, #1a1f3c, #0e1117 60%);
+    background-attachment: fixed;
+}
+
+/* Optional glowing overlay */
+.stApp::before {
+    content: "";
+    position: fixed;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(124,58,237,0.25), transparent 70%);
+    top: -100px;
+    left: -100px;
+    filter: blur(100px);
+    z-index: -1;
+}
+
+/* ── USER MESSAGE ── */
 .user-bubble {
     background: linear-gradient(135deg, #7C3AED, #A78BFA);
     color: white;
-    padding: 12px;
-    border-radius: 18px;
+    padding: 12px 16px;
+    border-radius: 18px 18px 4px 18px;
     margin: 10px 0;
     text-align: right;
+    box-shadow: 0 4px 15px rgba(124,58,237,0.3);
 }
+
+/* ── BOT MESSAGE ── */
 .bot-bubble {
-    background: #1C2030;
+    background: rgba(28,32,48,0.85);
+    backdrop-filter: blur(10px);
     color: #E5E7EB;
-    padding: 14px;
-    border-radius: 18px;
+    padding: 14px 16px;
+    border-radius: 18px 18px 18px 4px;
     margin: 10px 0;
+    border: 1px solid rgba(255,255,255,0.05);
 }
+
+/* ── TITLE ── */
 .title {
     text-align: center;
-    font-size: 32px;
-    color: #A78BFA;
+    font-size: 34px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #A78BFA, #7C3AED);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
+
+/* ── SUBTITLE ── */
 .subtitle {
     text-align: center;
     color: #9CA3AF;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    font-size: 14px;
 }
+
+/* ── INPUT BOX ── */
+.stTextInput input {
+    background-color: #1C2030 !important;
+    color: #E5E7EB !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}
+
+/* ── BUTTON ── */
+.stButton button {
+    background: linear-gradient(135deg, #7C3AED, #A78BFA) !important;
+    color: white !important;
+    border-radius: 12px !important;
+    border: none !important;
+    font-weight: 500;
+    box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+}
+
 </style>
 """, unsafe_allow_html=True)
-
 # ── Header ─────────────────────────────────
 st.markdown('<div class="title">💜 Empathica</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Your emotional wellness companion</div>', unsafe_allow_html=True)
