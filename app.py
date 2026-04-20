@@ -157,21 +157,30 @@ for msg in st.session_state.messages:
         """, unsafe_allow_html=True)
 
 # ── Input ──────────────────────────────────
-user_input = st.text_input("Share what's on your mind...")
+# ── Input State Fix ─────────────────────────
+if "input_text" not in st.session_state:
+    st.session_state.input_text = ""
+
+user_input = st.text_input(
+    "Share what's on your mind...",
+    key="input_text"
+)
 
 if st.button("Send 💜"):
 
-    if user_input.strip():
+    if st.session_state.input_text.strip():
+
+        text = st.session_state.input_text  # store before clearing
 
         # Save user message
         st.session_state.messages.append({
             "role": "user",
-            "content": user_input
+            "content": text
         })
 
         # Process
-        emotion, topic_detected = detect_emotion(user_input)
-        data = get_best_match(user_input)
+        emotion, topic_detected = detect_emotion(text)
+        data = get_best_match(text)
 
         bot_data = {
             "emotion": emotion,
@@ -185,6 +194,9 @@ if st.button("Send 💜"):
             "role": "bot",
             "data": bot_data
         })
+
+        # 🔥 CLEAR INPUT (THIS FIXES YOUR PROBLEM)
+        st.session_state.input_text = ""
 
         st.rerun()
 
