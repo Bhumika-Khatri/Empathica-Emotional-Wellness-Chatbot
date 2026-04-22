@@ -9,7 +9,7 @@ st.set_page_config(page_title="Empathica 💜", layout="centered")
 
 USER_FILE = "users.csv"
 
-# ── USER AUTH FUNCTIONS ────────────────
+# ── AUTH FUNCTIONS ─────────────────────
 def load_users():
     if not os.path.exists(USER_FILE):
         return pd.DataFrame(columns=["username", "password"])
@@ -29,7 +29,7 @@ def authenticate(username, password):
     user = df[(df["username"] == username) & (df["password"] == password)]
     return not user.empty
 
-# ── LOAD DATASET ───────────────────────
+# ── LOAD DATA ──────────────────────────
 @st.cache_data
 def load_data():
     df = pd.read_csv("counsel_chat.csv")
@@ -44,18 +44,18 @@ tfidf_matrix = vectorizer.fit_transform(df["questionText"])
 # ── EMOTION DETECTION ──────────────────
 def detect_emotion(text):
     text = text.lower()
-    if any(w in text for w in ["lonely","alone"]):
-        return "Loneliness"
-    elif any(w in text for w in ["anxious","stress"]):
-        return "Anxiety"
+    if any(w in text for w in ["lonely","alone","isolated"]):
+        return "depression"
+    elif any(w in text for w in ["anxious","stress","worried"]):
+        return "anxiety"
     elif any(w in text for w in ["angry","frustrated"]):
-        return "Anger"
+        return "anger"
     elif any(w in text for w in ["breakup","heartbroken"]):
-        return "Grief"
+        return "grief"
     else:
-        return "Sadness"
+        return "sadness"
 
-# ── RESPONSE MATCHING ──────────────────
+# ── MATCH RESPONSE ─────────────────────
 def get_best_match(user_text):
     user_vec = vectorizer.transform([user_text])
     similarity = cosine_similarity(user_vec, tfidf_matrix)
@@ -70,23 +70,20 @@ if "username" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ── UI DESIGN ──────────────────────────
+# ── UI STYLE ───────────────────────────
 st.markdown("""
 <style>
 .stApp {
     background: radial-gradient(circle at top, #1a1f3c, #0e1117 60%);
 }
 
-/* Glass card */
 .card {
     background: rgba(28,32,48,0.7);
     padding:20px;
     border-radius:20px;
     backdrop-filter: blur(10px);
-    border:1px solid rgba(255,255,255,0.05);
 }
 
-/* Chat bubbles */
 .user {
     background: linear-gradient(135deg,#7C3AED,#A78BFA);
     padding:10px 15px;
@@ -98,18 +95,10 @@ st.markdown("""
 
 .bot {
     background: rgba(255,255,255,0.05);
-    padding:12px;
+    padding:15px;
     border-radius:15px;
     margin:8px 0;
     color:#E5E7EB;
-}
-
-/* Profile */
-.profile {
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin-bottom:20px;
 }
 
 .avatar {
@@ -143,7 +132,7 @@ if not st.session_state.logged_in:
                 st.session_state.username = u
                 st.rerun()
             else:
-                st.error("Invalid login")
+                st.error("Invalid credentials")
 
     with tab2:
         nu = st.text_input("Create Username")
@@ -159,7 +148,7 @@ if not st.session_state.logged_in:
 
 # ── PROFILE HEADER ─────────────────────
 st.markdown(f"""
-<div class="profile">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
     <div style="display:flex;align-items:center;gap:10px;">
         <div class="avatar">{st.session_state.username[0].upper()}</div>
         <div style="color:white;">
@@ -177,7 +166,7 @@ if st.button("Logout"):
     st.session_state.messages = []
     st.rerun()
 
-# ── CHAT UI ────────────────────────────
+# ── CHAT BOX ───────────────────────────
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
 for msg in st.session_state.messages:
@@ -186,15 +175,28 @@ for msg in st.session_state.messages:
     else:
         st.markdown(f"""
         <div class='bot'>
-        💜 <b>Emotion:</b> {msg['emotion']} <br><br>
-        👩‍⚕️ <b>{msg['therapist']}</b><br><br>
+
+        <b>Detected Emotion:</b> {msg['emotion']}<br><br>
+
+        <b>Topic:</b> {msg['topic']}<br><br>
+
+        <b>Therapist Info:</b><br>
+        {msg['therapist']}<br><br>
+
+        <b>Therapist Advice:</b><br>
         {msg['answer']}
+
+        <br><br>
+        <div style="text-align:right;color:#A78BFA;font-size:12px;">
+        — Empathica 💜
+        </div>
+
         </div>
         """, unsafe_allow_html=True)
 
 # ── INPUT ──────────────────────────────
-with st.form("chat", clear_on_submit=True):
-    user_input = st.text_input("Share your thoughts...")
+with st.form("chat_form", clear_on_submit=True):
+    user_input = st.text_input("Share what's on your mind...")
     send = st.form_submit_button("Send 💜")
 
 if send and user_input:
@@ -210,6 +212,7 @@ if send and user_input:
     st.session_state.messages.append({
         "role": "bot",
         "emotion": emotion,
+        "topic": best["topic"],
         "therapist": best["therapistInfo"],
         "answer": best["answerText"]
     })
