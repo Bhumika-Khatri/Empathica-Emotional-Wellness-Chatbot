@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import base64
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -8,6 +9,84 @@ from sklearn.metrics.pairwise import cosine_similarity
 st.set_page_config(page_title="Empathica 💜", layout="centered")
 
 USER_FILE = "users.csv"
+
+# ── BACKGROUND IMAGE FUNCTION ──────────
+def get_base64(file):
+    with open(file, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+img = get_base64("background.png")
+
+# ── APPLY BACKGROUND ───────────────────
+st.markdown(f"""
+<style>
+.stApp {{
+    background-image: url("data:image/png;base64,{img}");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}}
+
+/* Dark overlay for readability */
+.stApp::before {{
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 20, 0.65);
+    z-index: -1;
+}}
+
+/* Glass card */
+.card {{
+    background: rgba(28,32,48,0.65);
+    padding:20px;
+    border-radius:20px;
+    backdrop-filter: blur(12px);
+}}
+
+/* Chat bubbles */
+.user {{
+    background: linear-gradient(135deg,#7C3AED,#A78BFA);
+    padding:10px 15px;
+    border-radius:15px;
+    color:white;
+    text-align:right;
+    margin:8px 0;
+}}
+
+.bot {{
+    background: rgba(255,255,255,0.06);
+    padding:15px;
+    border-radius:15px;
+    margin:8px 0;
+    color:#E5E7EB;
+}}
+
+/* Avatar */
+.avatar {{
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#7C3AED,#A78BFA);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-weight:bold;
+}}
+
+/* Login Tabs Glass Effect */
+[data-testid="stTabs"] {{
+    background: rgba(28,32,48,0.6);
+    padding: 15px;
+    border-radius: 15px;
+    backdrop-filter: blur(12px);
+}}
+</style>
+""", unsafe_allow_html=True)
 
 # ── AUTH FUNCTIONS ─────────────────────
 def load_users():
@@ -70,51 +149,6 @@ if "username" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ── UI STYLE ───────────────────────────
-st.markdown("""
-<style>
-.stApp {
-    background: radial-gradient(circle at top, #1a1f3c, #0e1117 60%);
-}
-
-.card {
-    background: rgba(28,32,48,0.7);
-    padding:20px;
-    border-radius:20px;
-    backdrop-filter: blur(10px);
-}
-
-.user {
-    background: linear-gradient(135deg,#7C3AED,#A78BFA);
-    padding:10px 15px;
-    border-radius:15px;
-    color:white;
-    text-align:right;
-    margin:8px 0;
-}
-
-.bot {
-    background: rgba(255,255,255,0.05);
-    padding:15px;
-    border-radius:15px;
-    margin:8px 0;
-    color:#E5E7EB;
-}
-
-.avatar {
-    width:40px;
-    height:40px;
-    border-radius:50%;
-    background:linear-gradient(135deg,#7C3AED,#A78BFA);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:white;
-    font-weight:bold;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # ── LOGIN / SIGNUP ─────────────────────
 if not st.session_state.logged_in:
 
@@ -175,22 +209,16 @@ for msg in st.session_state.messages:
     else:
         st.markdown(f"""
         <div class='bot'>
-
         <b>Detected Emotion:</b> {msg['emotion']}<br><br>
-
         <b>Topic:</b> {msg['topic']}<br><br>
-
         <b>Therapist Info:</b><br>
         {msg['therapist']}<br><br>
-
         <b>Therapist Advice:</b><br>
         {msg['answer']}
-
         <br><br>
         <div style="text-align:right;color:#A78BFA;font-size:12px;">
         — Empathica 💜
         </div>
-
         </div>
         """, unsafe_allow_html=True)
 
