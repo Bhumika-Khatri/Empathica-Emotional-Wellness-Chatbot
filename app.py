@@ -1,14 +1,35 @@
 import streamlit as st
 import pandas as pd
-import re
-
+import os
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# ── Page Config ─────────────────────────────
-st.set_page_config(page_title="Empathica 💜", page_icon="💜", layout="centered")
+# ── CONFIG ─────────────────────────────
+st.set_page_config(page_title="Empathica 💜", layout="centered")
 
-# ── Load Dataset ────────────────────────────
+USER_FILE = "users.csv"
+
+# ── USER AUTH FUNCTIONS ────────────────
+def load_users():
+    if not os.path.exists(USER_FILE):
+        return pd.DataFrame(columns=["username", "password"])
+    return pd.read_csv(USER_FILE)
+
+def save_user(username, password):
+    df = load_users()
+    if username in df["username"].values:
+        return False
+    new_user = pd.DataFrame([[username, password]], columns=["username", "password"])
+    df = pd.concat([df, new_user], ignore_index=True)
+    df.to_csv(USER_FILE, index=False)
+    return True
+
+def authenticate(username, password):
+    df = load_users()
+    user = df[(df["username"] == username) & (df["password"] == password)]
+    return not user.empty
+
+# ── LOAD DATASET ───────────────────────
 @st.cache_data
 def load_data():
     df = pd.read_csv("counsel_chat.csv")
@@ -17,181 +38,187 @@ def load_data():
 
 df = load_data()
 
-# ── TF-IDF Setup ───────────────────────────
 vectorizer = TfidfVectorizer(stop_words='english')
 tfidf_matrix = vectorizer.fit_transform(df["questionText"])
 
-# ── Emotion Detection ──────────────────────
+# ── EMOTION DETECTION ──────────────────
 def detect_emotion(text):
     text = text.lower()
-
-    if any(w in text for w in ["lonely", "alone", "isolated"]):
-        return "depression", "loneliness"
-    elif any(w in text for w in ["anxious", "stress", "worried"]):
-        return "anxiety", "stress"
-    elif any(w in text for w in ["angry", "mad", "frustrated"]):
-        return "anger", "frustration"
-    elif any(w in text for w in ["breakup", "heartbroken"]):
-        return "grief", "relationship"
+    if any(w in text for w in ["lonely","alone"]):
+        return "Loneliness"
+    elif any(w in text for w in ["anxious","stress"]):
+        return "Anxiety"
+    elif any(w in text for w in ["angry","frustrated"]):
+        return "Anger"
+    elif any(w in text for w in ["breakup","heartbroken"]):
+        return "Grief"
     else:
-        return "sadness", "general"
+        return "Sadness"
 
-# ── Smart Matching ─────────────────────────
+# ── RESPONSE MATCHING ──────────────────
 def get_best_match(user_text):
     user_vec = vectorizer.transform([user_text])
     similarity = cosine_similarity(user_vec, tfidf_matrix)
+    best = df.iloc[similarity.argmax()]
+    return best
 
-    best_idx = similarity.argmax()
-    best = df.iloc[best_idx]
-
-    return {
-        "therapist": best["therapistInfo"],
-        "answer": best["answerText"],
-        "topic": best["topic"]
-    }
-
-# ── Session State ──────────────────────────
+# ── SESSION ────────────────────────────
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "username" not in st.session_state:
+    st.session_state.username = ""
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ── UI CSS ─────────────────────────────────
+# ── UI DESIGN ──────────────────────────
 st.markdown("""
 <style>
-
-/* ── FULL APP BACKGROUND ── */
 .stApp {
-    background: radial-gradient(circle at top left, #1a1f3c, #0e1117 60%);
-    background-attachment: fixed;
+    background: radial-gradient(circle at top, #1a1f3c, #0e1117 60%);
 }
 
-/* Optional glowing overlay */
-.stApp::before {
-    content: "";
-    position: fixed;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(124,58,237,0.25), transparent 70%);
-    top: -100px;
-    left: -100px;
-    filter: blur(100px);
-    z-index: -1;
-}
-
-/* ── USER MESSAGE ── */
-.user-bubble {
-    background: linear-gradient(135deg, #7C3AED, #A78BFA);
-    color: white;
-    padding: 12px 16px;
-    border-radius: 18px 18px 4px 18px;
-    margin: 10px 0;
-    text-align: right;
-    box-shadow: 0 4px 15px rgba(124,58,237,0.3);
-}
-
-/* ── BOT MESSAGE ── */
-.bot-bubble {
-    background: rgba(28,32,48,0.85);
+/* Glass card */
+.card {
+    background: rgba(28,32,48,0.7);
+    padding:20px;
+    border-radius:20px;
     backdrop-filter: blur(10px);
-    color: #E5E7EB;
-    padding: 14px 16px;
-    border-radius: 18px 18px 18px 4px;
-    margin: 10px 0;
-    border: 1px solid rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.05);
 }
 
-/* ── TITLE ── */
-.title {
-    text-align: center;
-    font-size: 34px;
-    font-weight: bold;
-    background: linear-gradient(135deg, #A78BFA, #7C3AED);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+/* Chat bubbles */
+.user {
+    background: linear-gradient(135deg,#7C3AED,#A78BFA);
+    padding:10px 15px;
+    border-radius:15px;
+    color:white;
+    text-align:right;
+    margin:8px 0;
 }
 
-/* ── SUBTITLE ── */
-.subtitle {
-    text-align: center;
-    color: #9CA3AF;
-    margin-bottom: 25px;
-    font-size: 14px;
+.bot {
+    background: rgba(255,255,255,0.05);
+    padding:12px;
+    border-radius:15px;
+    margin:8px 0;
+    color:#E5E7EB;
 }
 
-/* ── INPUT BOX ── */
-.stTextInput input {
-    background-color: #1C2030 !important;
-    color: #E5E7EB !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
+/* Profile */
+.profile {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
 }
 
-/* ── BUTTON ── */
-.stButton button {
-    background: linear-gradient(135deg, #7C3AED, #A78BFA) !important;
-    color: white !important;
-    border-radius: 12px !important;
-    border: none !important;
-    font-weight: 500;
-    box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+.avatar {
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#7C3AED,#A78BFA);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-weight:bold;
 }
-
 </style>
 """, unsafe_allow_html=True)
-# ── Header ─────────────────────────────────
-st.markdown('<div class="title">💜 Empathica</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Your emotional wellness companion</div>', unsafe_allow_html=True)
 
-# ── Show Chat ──────────────────────────────
+# ── LOGIN / SIGNUP ─────────────────────
+if not st.session_state.logged_in:
+
+    st.markdown("<h2 style='text-align:center;color:white;'>💜 Empathica</h2>", unsafe_allow_html=True)
+
+    tab1, tab2 = st.tabs(["Login", "Signup"])
+
+    with tab1:
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+
+        if st.button("Login"):
+            if authenticate(u, p):
+                st.session_state.logged_in = True
+                st.session_state.username = u
+                st.rerun()
+            else:
+                st.error("Invalid login")
+
+    with tab2:
+        nu = st.text_input("Create Username")
+        np = st.text_input("Create Password", type="password")
+
+        if st.button("Signup"):
+            if save_user(nu, np):
+                st.success("Account created! Login now.")
+            else:
+                st.warning("User already exists")
+
+    st.stop()
+
+# ── PROFILE HEADER ─────────────────────
+st.markdown(f"""
+<div class="profile">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div class="avatar">{st.session_state.username[0].upper()}</div>
+        <div style="color:white;">
+            <b>{st.session_state.username}</b><br>
+            <span style="font-size:12px;color:#9CA3AF;">Online</span>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── LOGOUT ─────────────────────────────
+if st.button("Logout"):
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.session_state.messages = []
+    st.rerun()
+
+# ── CHAT UI ────────────────────────────
+st.markdown("<div class='card'>", unsafe_allow_html=True)
+
 for msg in st.session_state.messages:
     if msg["role"] == "user":
-        st.markdown(f'<div class="user-bubble">{msg["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(f"<div class='user'>{msg['content']}</div>", unsafe_allow_html=True)
     else:
-        data = msg["data"]
         st.markdown(f"""
-        <div class="bot-bubble">
-        🫀 <b>Emotion:</b> {data['emotion']}<br>
-        💬 <b>Topic:</b> {data['topic']}<br><br>
-        👩‍⚕️ <b>{data['therapist']}</b><br><br>
-        💜 {data['answer']}
+        <div class='bot'>
+        💜 <b>Emotion:</b> {msg['emotion']} <br><br>
+        👩‍⚕️ <b>{msg['therapist']}</b><br><br>
+        {msg['answer']}
         </div>
         """, unsafe_allow_html=True)
 
-# ── Input ──────────────────────────────────
-# ── INPUT FORM (BEST FIX) ───────────────────
-with st.form("chat_form", clear_on_submit=True):
+# ── INPUT ──────────────────────────────
+with st.form("chat", clear_on_submit=True):
+    user_input = st.text_input("Share your thoughts...")
+    send = st.form_submit_button("Send 💜")
 
-    user_input = st.text_input("Share what's on your mind...")
+if send and user_input:
 
-    submitted = st.form_submit_button("Send 💜")
-
-if submitted and user_input.strip():
-
-    # Save user message
     st.session_state.messages.append({
         "role": "user",
         "content": user_input
     })
 
-    # Process
-    emotion, topic_detected = detect_emotion(user_input)
-    data = get_best_match(user_input)
+    emotion = detect_emotion(user_input)
+    best = get_best_match(user_input)
 
-    bot_data = {
-        "emotion": emotion,
-        "topic": topic_detected,
-        "therapist": data["therapist"],
-        "answer": data["answer"]
-    }
-
-    # Save bot response
     st.session_state.messages.append({
         "role": "bot",
-        "data": bot_data
+        "emotion": emotion,
+        "therapist": best["therapistInfo"],
+        "answer": best["answerText"]
     })
 
     st.rerun()
 
-# ── Clear Chat ─────────────────────────────
-if st.button("🗑️ Clear Chat"):
+st.markdown("</div>", unsafe_allow_html=True)
+
+# ── CLEAR CHAT ─────────────────────────
+if st.button("🗑 Clear Chat"):
     st.session_state.messages = []
     st.rerun()
