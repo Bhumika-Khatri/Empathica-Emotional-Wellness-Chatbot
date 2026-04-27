@@ -178,20 +178,17 @@ def chatbot_response(user_input):
 
     emotion = predict_emotion(user_input)
 
-    user_embedding = sbert.encode(user_input,convert_to_tensor=True)
+    user_embedding = sbert.encode(user_input, convert_to_tensor=True)
 
-    scores = util.cos_sim(user_embedding,question_embeddings)
+    scores = util.cos_sim(user_embedding, question_embeddings)
 
     best_match = torch.argmax(scores).item()
 
     response = answers[best_match]
     therapist = therapists[best_match]
-    topic = topics[best_match]
 
     return f"""
 Detected Emotion: {emotion}
-
-Topic: {topic}
 
 Therapist Info:
 {therapist}
