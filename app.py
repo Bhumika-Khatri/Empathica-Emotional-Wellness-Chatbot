@@ -238,13 +238,11 @@ if send and user_input:
     best = get_best_match(user_input)
 
     st.session_state.messages.append({
-        "role": "bot",
-        "emotion": emotion,
-        "topic": best["topic"],
-        "therapist": best["therapistInfo"],
-        "answer": best["answerText"]
-    })
-
+    "role": "bot",
+    "emotion": emotion,
+    "therapist": best["therapistInfo"],
+    "answer": best["answerText"]
+})
     st.rerun()
 
 st.markdown("</div>", unsafe_allow_html=True)
