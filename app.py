@@ -27,19 +27,15 @@ st.markdown(f"""
     background-attachment: fixed;
 }}
 
-/* Dark overlay for readability */
 .stApp::before {{
     content: "";
     position: fixed;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
     background: rgba(10, 10, 20, 0.65);
     z-index: -1;
 }}
 
-/* Glass card */
 .card {{
     background: rgba(28,32,48,0.65);
     padding:20px;
@@ -47,7 +43,6 @@ st.markdown(f"""
     backdrop-filter: blur(12px);
 }}
 
-/* Chat bubbles */
 .user {{
     background: linear-gradient(135deg,#7C3AED,#A78BFA);
     padding:10px 15px;
@@ -65,7 +60,6 @@ st.markdown(f"""
     color:#E5E7EB;
 }}
 
-/* Avatar */
 .avatar {{
     width:40px;
     height:40px;
@@ -78,7 +72,6 @@ st.markdown(f"""
     font-weight:bold;
 }}
 
-/* Login Tabs Glass Effect */
 [data-testid="stTabs"] {{
     background: rgba(28,32,48,0.6);
     padding: 15px;
@@ -105,8 +98,7 @@ def save_user(username, password):
 
 def authenticate(username, password):
     df = load_users()
-    user = df[(df["username"] == username) & (df["password"] == password)]
-    return not user.empty
+    return not df[(df["username"] == username) & (df["password"] == password)].empty
 
 # ── LOAD DATA ──────────────────────────
 @st.cache_data
@@ -138,8 +130,7 @@ def detect_emotion(text):
 def get_best_match(user_text):
     user_vec = vectorizer.transform([user_text])
     similarity = cosine_similarity(user_vec, tfidf_matrix)
-    best = df.iloc[similarity.argmax()]
-    return best
+    return df.iloc[similarity.argmax()]
 
 # ── SESSION ────────────────────────────
 if "logged_in" not in st.session_state:
@@ -180,27 +171,21 @@ if not st.session_state.logged_in:
 
     st.stop()
 
-# ── PROFILE HEADER ─────────────────────
+# ── HEADER ─────────────────────────────
 st.markdown(f"""
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <div style="display:flex;align-items:center;gap:10px;">
+<div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex;gap:10px;align-items:center;">
         <div class="avatar">{st.session_state.username[0].upper()}</div>
-        <div style="color:white;">
-            <b>{st.session_state.username}</b><br>
-            <span style="font-size:12px;color:#9CA3AF;">Online</span>
-        </div>
+        <b style="color:white;">{st.session_state.username}</b>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ── LOGOUT ─────────────────────────────
 if st.button("Logout"):
-    st.session_state.logged_in = False
-    st.session_state.username = ""
-    st.session_state.messages = []
+    st.session_state.clear()
     st.rerun()
 
-# ── CHAT BOX ───────────────────────────
+# ── CHAT UI ────────────────────────────
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
 for msg in st.session_state.messages:
@@ -210,7 +195,6 @@ for msg in st.session_state.messages:
         st.markdown(f"""
         <div class='bot'>
         <b>Detected Emotion:</b> {msg['emotion']}<br><br>
-        <b>Topic:</b> {msg['topic']}<br><br>
         <b>Therapist Info:</b><br>
         {msg['therapist']}<br><br>
         <b>Therapist Advice:</b><br>
@@ -238,11 +222,12 @@ if send and user_input:
     best = get_best_match(user_input)
 
     st.session_state.messages.append({
-    "role": "bot",
-    "emotion": emotion,
-    "therapist": best["therapistInfo"],
-    "answer": best["answerText"]
-})
+        "role": "bot",
+        "emotion": emotion,
+        "therapist": best["therapistInfo"],
+        "answer": best["answerText"]
+    })
+
     st.rerun()
 
 st.markdown("</div>", unsafe_allow_html=True)
